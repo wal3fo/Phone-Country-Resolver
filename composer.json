@@ -1,6 +1,7 @@
 {
     "name": "wal3fo/phone-country",
     "description": "Resolve country code from phone number for Laravel.",
+    "type": "library",
     "license": "MIT",
     "authors": [
         {
@@ -23,5 +24,6 @@
                 "Wal3fo\\PhoneCountry\\PhoneCountryServiceProvider"
             ]
         }
-    }
+    },
+    "minimum-stability": "stable"
 }
