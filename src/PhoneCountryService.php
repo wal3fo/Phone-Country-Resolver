@@ -7,12 +7,24 @@ class PhoneCountryService
     /**
      * Resolve country code from phone number.
      *
+     * @param string $phoneNumber
+     * @param string $localCountryCode ISO 3166-1 alpha-2 country code to return for local numbers or if not resolved
      * @return string ISO 3166-1 alpha-2 country code
      */
-    public static function resolveCountryCode(string $phoneNumber): string
+    public static function resolveCountryCode(string $phoneNumber, string $localCountryCode = 'XX'): string
     {
         // Remove non-numeric characters
         $cleanNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+
+        // Handle cases where the number starts with 00 (international prefix)
+        if (str_starts_with($cleanNumber, '00')) {
+            $cleanNumber = ltrim(substr($cleanNumber, 2), '0');
+        }
+
+        // If the number starts with 0 (and not 00, which we handled above), it's likely a local number
+        if (str_starts_with($cleanNumber, '0') && !str_starts_with($cleanNumber, '00')) {
+            return $localCountryCode;
+        }
 
         // Simple prefix mapping
         // Order matters: longer prefixes first
@@ -264,6 +276,6 @@ class PhoneCountryService
             }
         }
 
-        return 'XX'; // Unknown/Global
+        return $localCountryCode; // Fallback to provided local/default country code if unknown
     }
 }
