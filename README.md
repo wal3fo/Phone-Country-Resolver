@@ -8,11 +8,24 @@ A lightweight Laravel package to resolve **ISO 3166-1 alpha-2 country codes** fr
 
 ---
 
+## What's New in v0.2.0
+
+- **`PhoneResult` object** — `resolve()` now returns a rich result with country name, dial code, E.164 format, and more
+- **Laravel validation rule** — `PhoneCountryRule` integrates directly with Laravel's validator
+- **Batch resolution** — `resolveMany()` resolves an array of numbers in one call
+- **E.164 normalization** — `normalize()` returns a standardized phone string for database storage
+- **Publishable config** — set a global default country once via `config/phone-country.php`
+- `resolveCountryCode()` is kept as a fully backward-compatible alias — nothing breaks
+
+---
+
 ## Features
 
 - Resolves country codes from international prefixes (e.g. `+1`, `0044`, `212`)
+- Returns a rich `PhoneResult` object with name, dial code, format, and E.164
+- Built-in Laravel validation rule with country allowlist and strict mode
 - Handles local phone formats starting with `0` via a configurable fallback
-- Longest-prefix matching for accurate resolution of overlapping codes
+- Longest-prefix matching for accurate resolution of overlapping codes (e.g. NANP)
 - Registered as a singleton — supports both static calls and dependency injection
 - Auto-discovered by Laravel — no manual provider registration needed
 
@@ -24,49 +37,108 @@ A lightweight Laravel package to resolve **ISO 3166-1 alpha-2 country codes** fr
 composer require wal3fo/phone-country
 ```
 
-### Local Development
-
-To work with a local copy of the package, add a path repository to your project's `composer.json`:
-
-```json
-"repositories": [
-    {
-        "type": "path",
-        "url": "../Phone-Country-Resolver"
-    }
-]
-```
-
-Then require it normally:
+Optionally publish the config file to set a global default country:
 
 ```bash
-composer require wal3fo/phone-country
+php artisan vendor:publish --tag=phone-country-config
 ```
 
 ---
 
 ## Usage
 
-### Static Method
+### resolve() — recommended
 
-Call `resolveCountryCode` statically from anywhere in your application:
+`resolve()` returns a `PhoneResult` object with everything you need:
 
 ```php
 use Wal3fo\PhoneCountry\PhoneCountryService;
 
-// Standard international format
-PhoneCountryService::resolveCountryCode('+212612345678');       // → 'MA'
+$result = PhoneCountryService::resolve('+212612345678');
 
-// Local number with explicit fallback
-PhoneCountryService::resolveCountryCode('0612345678', 'MA');   // → 'MA'
+$result->countryCode;  // 'MA'
+$result->countryName;  // 'Morocco'
+$result->dialCode;     // '+212'
+$result->isResolved;   // true
+$result->format;       // 'international'
+$result->e164;         // '+212612345678'
+$result->isValid();    // true
+$result->toArray();    // ready for API responses
 
-// Unknown or unresolvable number (returns default)
-PhoneCountryService::resolveCountryCode('0612345678');         // → 'XX'
+// Still works as a string
+echo $result;          // 'MA'
+```
+
+With a local number fallback:
+
+```php
+$result = PhoneCountryService::resolve('0612345678', 'MA');
+$result->countryCode;  // 'MA'
+$result->format;       // 'local'
+$result->e164;         // '+212612345678'
+```
+
+### resolveMany() — batch resolution
+
+```php
+$results = PhoneCountryService::resolveMany([
+    '+212612345678',
+    '+33612345678',
+    '0612345678',
+], 'MA');
+
+// Returns PhoneResult[] in the same order
+```
+
+### normalize() — E.164 for database storage
+
+```php
+PhoneCountryService::normalize('+212612345678');      // '+212612345678'
+PhoneCountryService::normalize('00212612345678');     // '+212612345678'
+PhoneCountryService::normalize('0612345678', 'MA');   // '+212612345678'
+PhoneCountryService::normalize('0612345678');         // null (unresolvable)
+```
+
+### Validation Rule
+
+Use `PhoneCountryRule` directly inside your Laravel form requests or controllers:
+
+```php
+use Wal3fo\PhoneCountry\Rules\PhoneCountryRule;
+
+// Accept any valid international number
+'phone' => ['required', new PhoneCountryRule()]
+
+// Accept international or local numbers, with Morocco as fallback
+'phone' => ['required', new PhoneCountryRule('MA')]
+
+// Restrict to specific countries
+'phone' => ['required', new PhoneCountryRule(['MA', 'FR', 'ES'])]
+
+// Strict mode: reject local 0xxx formats, require full international format
+'phone' => ['required', new PhoneCountryRule('MA', strict: true)]
+```
+
+Example in a Form Request:
+
+```php
+use Wal3fo\PhoneCountry\Rules\PhoneCountryRule;
+
+class RegisterRequest extends FormRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name'  => ['required', 'string'],
+            'phone' => ['required', 'string', new PhoneCountryRule('MA')],
+        ];
+    }
+}
 ```
 
 ### Dependency Injection
 
-The service is registered as a singleton in Laravel's container and can be injected directly:
+The service is registered as a singleton and can be injected directly:
 
 ```php
 use Wal3fo\PhoneCountry\PhoneCountryService;
@@ -79,44 +151,62 @@ class UserProfileController extends Controller
 
     public function update(Request $request)
     {
-        $countryCode = $this->phoneService->resolveCountryCode(
-            $request->phone_number
-        );
+        $result = $this->phoneService->resolve($request->phone_number);
 
-        // ...
+        $user->update([
+            'phone'        => $result->e164,
+            'country_code' => $result->countryCode,
+        ]);
     }
 }
+```
+
+### resolveCountryCode() — backward compatible
+
+The original method still works exactly as before:
+
+```php
+PhoneCountryService::resolveCountryCode('+212612345678');       // 'MA'
+PhoneCountryService::resolveCountryCode('0612345678', 'MA');   // 'MA'
+PhoneCountryService::resolveCountryCode('0612345678');         // 'XX'
 ```
 
 ---
 
 ## Examples
 
-The service handles all common international and local phone number formats:
-
-| Input | Result | Notes |
-|-------|--------|-------|
-| `+212612345678` | `MA` | Standard international format |
-| `00212612345678` | `MA` | Double-zero prefix |
-| `212612345678` | `MA` | Numeric-only international |
-| `0612345678` | `XX` | Local format, no fallback provided |
-| `0612345678` + `'MA'` | `MA` | Local format with fallback |
-| `+1 242 123 4567` | `BS` | Formatted international (Bahamas) |
+| Input | Country Code | Country Name | Format |
+|-------|-------------|--------------|--------|
+| `+212612345678` | `MA` | Morocco | international |
+| `00212612345678` | `MA` | Morocco | international |
+| `212612345678` | `MA` | Morocco | numeric |
+| `0612345678` + `'MA'` | `MA` | Morocco | local |
+| `0612345678` | `XX` | Unknown | local |
+| `+1 242 123 4567` | `BS` | Bahamas | international |
+| `+33612345678` | `FR` | France | international |
 
 ---
 
 ## Configuration
 
-`resolveCountryCode` accepts an optional second parameter, `$localCountryCode`, used as a fallback when:
+Publish the config file to set global defaults:
 
-1. The number starts with `0` (local format).
-2. The prefix cannot be resolved to a known country.
-
-By default, unresolvable numbers return `'XX'`.
+```bash
+php artisan vendor:publish --tag=phone-country-config
+```
 
 ```php
-// Returns 'MA' for local or unknown numbers
-$code = PhoneCountryService::resolveCountryCode('0600000000', 'MA');
+// config/phone-country.php
+return [
+    'default_country' => env('PHONE_COUNTRY_DEFAULT', 'XX'),
+    'unknown_code'    => 'XX',
+];
+```
+
+Or set it in your `.env`:
+
+```env
+PHONE_COUNTRY_DEFAULT=MA
 ```
 
 ---
@@ -128,8 +218,8 @@ $code = PhoneCountryService::resolveCountryCode('0600000000', 'MA');
 **Performance** — Prefix lookup is optimized using longest-prefix matching. For high-volume workloads, consider caching resolved results:
 
 ```php
-$code = Cache::remember("phone_country:{$phone}", 3600, fn () =>
-    PhoneCountryService::resolveCountryCode($phone)
+$result = Cache::remember("phone_country:{$phone}", 3600, fn () =>
+    PhoneCountryService::resolve($phone)
 );
 ```
 
@@ -148,6 +238,21 @@ Contributions are welcome. To get started:
 5. Open a Pull Request.
 
 Please ensure your changes are well-tested and consistent with the existing code style.
+
+---
+
+## Changelog
+
+### v1.0.2
+- Added `PhoneResult` value object returned by `resolve()`
+- Added `resolveMany()` for batch resolution
+- Added `normalize()` for E.164 output
+- Added `PhoneCountryRule` Laravel validation rule with allowlist and strict mode
+- Added publishable config with `default_country` support
+- `resolveCountryCode()` kept as backward-compatible alias
+
+### v1.0.1
+- Initial release with `resolveCountryCode()` and longest-prefix matching
 
 ---
 
