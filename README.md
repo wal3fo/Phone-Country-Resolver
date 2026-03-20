@@ -8,7 +8,7 @@ A lightweight Laravel package to resolve **ISO 3166-1 alpha-2 country codes** fr
 
 ---
 
-## What's New in v0.2.0
+## What's New in v1.0.1
 
 - **`PhoneResult` object** — `resolve()` now returns a rich result with country name, dial code, E.164 format, and more
 - **Laravel validation rule** — `PhoneCountryRule` integrates directly with Laravel's validator
