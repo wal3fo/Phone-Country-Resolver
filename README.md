@@ -10,7 +10,7 @@ Everything is zero-dependency and zero-configuration. No LLM API key required.
 
 ---
 
-## What's New in v2.0
+## What's New in v1.0.3
 
 - **`analyze()`** — one method that runs all AI features and returns a `PhoneAnalysis` object
 - **Smart normalization** — repairs messy real-world inputs before resolution
