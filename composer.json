@@ -1,6 +1,6 @@
 {
     "name": "wal3fo/phone-country",
-    "description": "Resolve country code from phone number for Laravel.",
+    "description": "Resolve country code from phone number for Laravel, with AI-powered normalization, disambiguation, fraud detection, and metadata enrichment.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -15,7 +15,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Wal3fo\\PhoneCountry\\": "src/"
+            "Wal3fo\\PhoneCountry\\": "src/",
+            "Wal3fo\\PhoneCountry\\AI\\": "src/AI/"
         }
     },
     "extra": {
