@@ -1,128 +1,134 @@
-# phone-country-resolver
+<div align="center">
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/wal3fo/phone-country.svg?style=flat-square)](https://packagist.org/packages/wal3fo/phone-country)
-[![Total Downloads](https://img.shields.io/packagist/dt/wal3fo/phone-country.svg?style=flat-square)](https://packagist.org/packages/wal3fo/phone-country)
-[![License](https://img.shields.io/packagist/l/wal3fo/phone-country.svg?style=flat-square)](https://packagist.org/packages/wal3fo/phone-country)
+<img src=".github/assets/banner.svg" alt="phone-country-resolver" width="100%">
 
-A Laravel package to resolve **ISO 3166-1 alpha-2 country codes** from phone numbers — with AI-powered normalization, NANP disambiguation, fraud detection, rich metadata enrichment, and plain-language explanations.
+<br/>
 
-Everything is zero-dependency and zero-configuration. No LLM API key required.
+[![Packagist Version](https://img.shields.io/packagist/v/wal3fo/phone-country?style=flat-square&color=6ee7b7&labelColor=0d1117)](https://packagist.org/packages/wal3fo/phone-country)
+[![Total Downloads](https://img.shields.io/packagist/dt/wal3fo/phone-country?style=flat-square&color=818cf8&labelColor=0d1117)](https://packagist.org/packages/wal3fo/phone-country)
+[![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4?style=flat-square&labelColor=0d1117)](https://php.net)
+[![Laravel](https://img.shields.io/badge/Laravel-8--13-FF2D20?style=flat-square&labelColor=0d1117)](https://laravel.com)
+[![License](https://img.shields.io/packagist/l/wal3fo/phone-country?style=flat-square&color=fb923c&labelColor=0d1117)](LICENSE)
 
----
+<br/>
 
-## What's New in v1.0.3
+**Resolve ISO 3166-1 alpha-2 country codes from phone numbers.**  
+AI-powered normalization · NANP disambiguation · Fraud detection · Rich metadata · Zero dependencies.
 
-- **`analyze()`** — one method that runs all AI features and returns a `PhoneAnalysis` object
-- **Smart normalization** — repairs messy real-world inputs before resolution
-- **NANP disambiguation** — resolves `+1` to the correct country (US vs Canada vs Jamaica vs 20+ others) using area codes
-- **Fraud signal detection** — classifies number type (mobile / landline / VOIP / toll-free / premium) and scores risk 0–100
-- **Rich metadata** — timezone, currency, language, expected subscriber length, and length validity
-- **Plain-language explanation** — human-readable description for dashboards and support tools
-- **`analyzeMany()`** — batch version of `analyze()`
-- All v1.x methods (`resolve()`, `resolveMany()`, `normalize()`, `resolveCountryCode()`) are fully unchanged
-
----
-
-## Installation
+<br/>
 
 ```bash
 composer require wal3fo/phone-country
 ```
 
-Optionally publish the config:
-
-```bash
-php artisan vendor:publish --tag=phone-country-config
-```
+</div>
 
 ---
 
-## AI Features — analyze()
+## How it works
 
-`analyze()` is the new primary method. It runs all AI features in sequence and returns a `PhoneAnalysis` object.
+`analyze()` runs six AI stages in sequence, building on the existing `resolve()` pipeline:
+
+<div align="center">
+<img src=".github/assets/architecture.svg" alt="analyze() pipeline" width="100%">
+</div>
+
+<br/>
+
+---
+
+## ✦ What's new in v2.0
+
+| Feature | Method | Description |
+|---|---|---|
+| 🧹 Smart normalization | `analyze()` | Repairs messy inputs — strips labels, removes `(0)` trunk prefixes, collapses separators |
+| 🌎 NANP disambiguation | `analyze()` | Resolves `+1` to the correct country using a full area-code map for 25+ territories |
+| 🔍 Fraud detection | `analyze()` | Classifies number type and scores risk 0–100 using prefix tables and structural signals |
+| 🌐 Rich metadata | `analyze()` | Timezone, currency, language, subscriber length for 180+ countries |
+| 💬 Explanation | `analyze()` | Plain-language description — deterministic, no LLM, no API key |
+| 📦 Batch | `analyzeMany()` | Processes arrays in a single call |
+
+> All v1.x methods — `resolve()`, `resolveMany()`, `normalize()`, `resolveCountryCode()` — are fully unchanged.
+
+---
+
+## Quick start
 
 ```php
 use Wal3fo\PhoneCountry\PhoneCountryService;
 
 $analysis = PhoneCountryService::analyze('+18765551234');
 
-// ── Disambiguation ──────────────────────────────────────────────
-$analysis->disambiguatedCountryCode;   // 'JM'  (Jamaica, not US)
+// ── Disambiguation ──────────────────────────────────────
+$analysis->disambiguatedCountryCode;   // 'JM'  ← Jamaica, not US
 $analysis->disambiguationNote;         // 'Area code 876 is assigned to JM, not US.'
-$analysis->countryCode();              // 'JM'  (best available code, disambiguation-aware)
+$analysis->countryCode();              // 'JM'  ← disambiguation-aware
 
-// ── Fraud & Risk ────────────────────────────────────────────────
+// ── Fraud & Risk ────────────────────────────────────────
 $analysis->riskLevel;                  // 'low'
 $analysis->riskScore;                  // 0–100
 $analysis->numberType;                 // 'mobile'
 $analysis->fraudSignals;               // []
 
-// ── Rich Metadata ────────────────────────────────────────────────
+// ── Rich Metadata ────────────────────────────────────────
 $analysis->timezone;                   // 'America/Jamaica'
 $analysis->currency;                   // 'JMD'
 $analysis->language;                   // 'en'
 $analysis->subscriberLength;           // 7
 $analysis->lengthValid;                // true
 
-// ── Explanation ──────────────────────────────────────────────────
+// ── Explanation ──────────────────────────────────────────
 $analysis->explanation;
 // "This appears to be a mobile number from Jamaica (dial code +1).
-//  It was provided in standard international format.
 //  Area code 876 is assigned to JM, not US.
 //  The standardized E.164 format is +18765551234.
 //  No fraud signals were detected."
 
-// ── Safety check ─────────────────────────────────────────────────
-$analysis->isSafe();                   // true (low risk + valid length + resolved)
-
-// ── Full array for API responses ─────────────────────────────────
-$analysis->toArray();
+// ── Safety ───────────────────────────────────────────────
+$analysis->isSafe();   // true  (low risk + valid length + resolved)
+$analysis->toArray();  // full array for API responses
 ```
 
-### Smart normalization
+---
 
-Messy inputs are automatically cleaned before resolution:
+## AI features
+
+### 🧹 Smart normalization
+
+Messy real-world inputs are cleaned before resolution:
 
 ```php
-$a = PhoneCountryService::analyze('(+212) 06-12.345.678');
-$a->wasNormalized;        // true
-$a->normalizedInput;      // '+212612345678'
-$a->rawInput;             // '(+212) 06-12.345.678'
-$a->result->countryCode;  // 'MA'
+// Parentheses, dots, dashes
+PhoneCountryService::analyze('(+212) 06-12.345.678')->normalizedInput;    // '+212612345678'
+PhoneCountryService::analyze('(+212) 06-12.345.678')->wasNormalized;      // true
 
 // UK-style trunk prefix
-$b = PhoneCountryService::analyze('+44 (0)20 7946 0958');
-$b->wasNormalized;        // true
-$b->result->countryCode;  // 'GB'
+PhoneCountryService::analyze('+44 (0)20 7946 0958')->result->countryCode; // 'GB'
 
-// Label prefix (from contact books)
-$c = PhoneCountryService::analyze('Phone: +33612345678');
-$c->wasNormalized;        // true
-$c->result->countryCode;  // 'FR'
+// Label prefix from contact books
+PhoneCountryService::analyze('Phone: +33612345678')->result->countryCode;  // 'FR'
 ```
 
-### NANP disambiguation
+---
 
-The `+1` prefix is shared by 25+ countries. `analyze()` resolves the correct one:
+### 🌎 NANP disambiguation
+
+`+1` is shared by 25+ countries. `analyze()` uses the 3-digit area code to resolve the correct one:
 
 ```php
-// Jamaica
-PhoneCountryService::analyze('+18765551234')->disambiguatedCountryCode; // 'JM'
-
-// Canada
-PhoneCountryService::analyze('+14165551234')->disambiguatedCountryCode; // 'CA'
-
-// Bahamas
-PhoneCountryService::analyze('+12425551234')->disambiguatedCountryCode; // 'BS'
-
-// Puerto Rico
-PhoneCountryService::analyze('+17875551234')->disambiguatedCountryCode; // 'PR'
-
-// Plain US number — no note, no overhead
-PhoneCountryService::analyze('+12125551234')->disambiguatedCountryCode; // 'US'
+PhoneCountryService::analyze('+18765551234')->disambiguatedCountryCode; // 'JM' — Jamaica
+PhoneCountryService::analyze('+14165551234')->disambiguatedCountryCode; // 'CA' — Canada
+PhoneCountryService::analyze('+12425551234')->disambiguatedCountryCode; // 'BS' — Bahamas
+PhoneCountryService::analyze('+17875551234')->disambiguatedCountryCode; // 'PR' — Puerto Rico
+PhoneCountryService::analyze('+18695551234')->disambiguatedCountryCode; // 'KN' — Saint Kitts
+PhoneCountryService::analyze('+12125551234')->disambiguatedCountryCode; // 'US' — no overhead
 ```
 
-### Fraud detection
+Covers all assigned NANP area codes: `US` · `CA` · `JM` · `BS` · `BB` · `AG` · `AI` · `VI` · `KY` · `BM` · `GD` · `TC` · `MS` · `GU` · `MP` · `AS` · `SX` · `LC` · `DM` · `PR` · `VC` · `DO` · `TT` · `KN` · `VG`
+
+---
+
+### 🔍 Fraud signal detection
 
 ```php
 // Toll-free number
@@ -138,13 +144,21 @@ $b->numberType;    // 'premium'
 $b->riskLevel;     // 'high'
 $b->riskScore;     // 50
 
-// Repeating pattern (test/fake number)
+// Repeating digits — fake/test number
 $c = PhoneCountryService::analyze('+212611111111');
 $c->fraudSignals;  // ['repeating_digit_pattern']
 $c->riskLevel;     // 'high'
 ```
 
-### Rich metadata
+**Risk levels:** `low` (0–29) · `medium` (30–59) · `high` (60–100)
+
+**Detected signals:** `toll_free_range` · `premium_rate_range` · `voip_pattern` · `repeating_digit_pattern` · `sequential_digit_pattern` · `fictional_reserved_range` · `unresolvable_country`
+
+**Number types:** `mobile` · `landline` · `voip` · `toll_free` · `premium` · `unknown`
+
+---
+
+### 🌐 Rich metadata enrichment
 
 ```php
 $a = PhoneCountryService::analyze('+212612345678');
@@ -160,7 +174,11 @@ $b->currency;           // 'EUR'
 $b->language;           // 'fr'
 ```
 
-### Batch analysis
+Covers 180+ countries with IANA timezone · ISO 4217 currency · BCP 47 language · expected subscriber length.
+
+---
+
+### 📦 Batch analysis
 
 ```php
 $results = PhoneCountryService::analyzeMany([
@@ -179,9 +197,9 @@ foreach ($results as $analysis) {
 
 ---
 
-## v1.x Methods (fully unchanged)
+## Core methods — v1.x
 
-### resolve()
+### `resolve()`
 
 ```php
 $result = PhoneCountryService::resolve('+212612345678');
@@ -193,23 +211,36 @@ $result->isResolved;   // true
 $result->format;       // 'international'
 $result->e164;         // '+212612345678'
 $result->isValid();    // true
-$result->toArray();
+$result->toArray();    // ready for API responses
 echo $result;          // 'MA'
 ```
 
-### resolveMany()
+With a local number fallback:
 
 ```php
-$results = PhoneCountryService::resolveMany(['+212612345678', '+33612345678'], 'MA');
+$result = PhoneCountryService::resolve('0612345678', 'MA');
+$result->countryCode;  // 'MA'
+$result->format;       // 'local'
+$result->e164;         // '+212612345678'
 ```
 
-### normalize()
+### `resolveMany()`
 
 ```php
-PhoneCountryService::normalize('+212612345678');       // '+212612345678'
-PhoneCountryService::normalize('00212612345678');      // '+212612345678'
-PhoneCountryService::normalize('0612345678', 'MA');    // '+212612345678'
-PhoneCountryService::normalize('0612345678');          // null
+$results = PhoneCountryService::resolveMany([
+    '+212612345678',
+    '+33612345678',
+    '0612345678',
+], 'MA'); // returns PhoneResult[] in the same order
+```
+
+### `normalize()`
+
+```php
+PhoneCountryService::normalize('+212612345678');      // '+212612345678'
+PhoneCountryService::normalize('00212612345678');     // '+212612345678'
+PhoneCountryService::normalize('0612345678', 'MA');   // '+212612345678'
+PhoneCountryService::normalize('0612345678');         // null — unresolvable
 ```
 
 ### Validation rule
@@ -217,70 +248,115 @@ PhoneCountryService::normalize('0612345678');          // null
 ```php
 use Wal3fo\PhoneCountry\Rules\PhoneCountryRule;
 
+// Any valid international number
 'phone' => ['required', new PhoneCountryRule()]
+
+// With Morocco as local fallback
 'phone' => ['required', new PhoneCountryRule('MA')]
+
+// Restrict to a country allowlist
 'phone' => ['required', new PhoneCountryRule(['MA', 'FR', 'ES'])]
+
+// Strict mode — reject local 0xxx format
 'phone' => ['required', new PhoneCountryRule('MA', strict: true)]
 ```
 
-### resolveCountryCode() — backward compatible
+Example in a Form Request:
+
+```php
+use Wal3fo\PhoneCountry\Rules\PhoneCountryRule;
+
+class RegisterRequest extends FormRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name'  => ['required', 'string'],
+            'phone' => ['required', 'string', new PhoneCountryRule('MA')],
+        ];
+    }
+}
+```
+
+### `resolveCountryCode()` — backward compatible
 
 ```php
 PhoneCountryService::resolveCountryCode('+212612345678');       // 'MA'
-PhoneCountryService::resolveCountryCode('0612345678', 'MA');    // 'MA'
-PhoneCountryService::resolveCountryCode('0612345678');          // 'XX'
+PhoneCountryService::resolveCountryCode('0612345678', 'MA');   // 'MA'
+PhoneCountryService::resolveCountryCode('0612345678');         // 'XX'
+```
+
+### Dependency injection
+
+```php
+class UserProfileController extends Controller
+{
+    public function __construct(
+        protected PhoneCountryService $phoneService
+    ) {}
+
+    public function update(Request $request)
+    {
+        $result = $this->phoneService->resolve($request->phone_number);
+
+        $user->update([
+            'phone'        => $result->e164,
+            'country_code' => $result->countryCode,
+        ]);
+    }
+}
 ```
 
 ---
 
-## PhoneAnalysis object reference
+## `PhoneAnalysis` reference
 
 | Property | Type | Description |
 |---|---|---|
-| `result` | `PhoneResult` | Underlying resolved result |
+| `result` | `PhoneResult` | Underlying result from `resolve()` |
 | `rawInput` | `string` | Original input before normalization |
-| `normalizedInput` | `string` | Cleaned input after normalization |
-| `wasNormalized` | `bool` | Whether the input was repaired |
-| `disambiguatedCountryCode` | `string` | Best country code (NANP-aware) |
-| `disambiguationNote` | `?string` | Explanation if NANP was disambiguated |
-| `riskLevel` | `string` | `'low'` / `'medium'` / `'high'` |
+| `normalizedInput` | `string` | Cleaned input passed to resolver |
+| `wasNormalized` | `bool` | Whether the input required repair |
+| `disambiguatedCountryCode` | `string` | Best country code — NANP area-code aware |
+| `disambiguationNote` | `?string` | Human note if `+1` was disambiguated |
+| `riskLevel` | `string` | `low` / `medium` / `high` |
 | `riskScore` | `int` | 0–100 |
-| `numberType` | `string` | `'mobile'` / `'landline'` / `'voip'` / `'toll_free'` / `'premium'` / `'unknown'` |
+| `numberType` | `string` | `mobile` / `landline` / `voip` / `toll_free` / `premium` / `unknown` |
 | `fraudSignals` | `string[]` | Detected signal labels |
-| `timezone` | `?string` | IANA timezone |
+| `timezone` | `?string` | IANA timezone identifier |
 | `currency` | `?string` | ISO 4217 currency code |
 | `language` | `?string` | BCP 47 language tag |
 | `subscriberLength` | `?int` | Expected digits after dial code |
-| `lengthValid` | `bool` | Whether actual length matches expected |
+| `lengthValid` | `bool` | Whether number length is plausible |
 | `explanation` | `string` | Plain-language description |
 
-Methods: `countryCode()`, `isSafe()`, `toArray()`
+**Methods:** `countryCode()` — disambiguation-aware best code · `isSafe()` — low risk + valid length + resolved · `toArray()` — full array for API responses
 
 ---
 
-## File structure
+## Examples
 
-```
-src/
-├── PhoneCountryService.php       # Main service — all public methods
-├── PhoneCountryServiceProvider.php
-├── PhoneResult.php               # Value object from resolve()
-├── PhoneAnalysis.php             # Value object from analyze()
-├── Rules/
-│   └── PhoneCountryRule.php      # Laravel validation rule
-└── AI/
-    ├── PhoneNormalizer.php       # Smart input normalization
-    ├── NanpDisambiguator.php     # +1 shared-prefix resolution
-    ├── FraudDetector.php         # Risk scoring & type classification
-    ├── MetadataEnricher.php      # Timezone / currency / language / length
-    └── PhoneExplainer.php        # Plain-language explanation generator
-config/
-└── phone-country.php
-```
+| Input | Country | Name | Format |
+|---|---|---|---|
+| `+212612345678` | `MA` | Morocco | international |
+| `00212612345678` | `MA` | Morocco | international |
+| `0612345678` + `'MA'` | `MA` | Morocco | local |
+| `+1 876 555 1234` | `JM` | Jamaica | international |
+| `+1 416 555 1234` | `CA` | Canada | international |
+| `+33612345678` | `FR` | France | international |
+| `+1 242 123 4567` | `BS` | Bahamas | international |
+| `0612345678` | `XX` | Unknown | local |
 
 ---
 
-## Configuration
+## Installation & configuration
+
+```bash
+composer require wal3fo/phone-country
+
+# Optionally publish the config
+php artisan vendor:publish --tag=phone-country-config
+```
 
 ```php
 // config/phone-country.php
@@ -294,11 +370,7 @@ return [
 PHONE_COUNTRY_DEFAULT=MA
 ```
 
----
-
-## Performance
-
-For high-volume workloads, cache `analyze()` results:
+**Performance** — for high-volume workloads, cache `analyze()` results:
 
 ```php
 $analysis = Cache::remember("phone_analysis:{$phone}", 3600, fn () =>
@@ -308,33 +380,57 @@ $analysis = Cache::remember("phone_analysis:{$phone}", 3600, fn () =>
 
 ---
 
-## Contributing
+## File structure
 
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit: `git commit -m 'Add your feature'`
-4. Push: `git push origin feature/your-feature`
-5. Open a Pull Request.
+```
+src/
+├── PhoneCountryService.php          ← Main service — all public methods
+├── PhoneCountryServiceProvider.php
+├── PhoneResult.php                  ← Value object from resolve()
+├── PhoneAnalysis.php                ← Value object from analyze()  ✦ new
+├── Rules/
+│   └── PhoneCountryRule.php         ← Laravel validation rule
+└── AI/                              ✦ new
+    ├── PhoneNormalizer.php          ← Smart input normalization
+    ├── NanpDisambiguator.php        ← +1 area-code map (25+ countries)
+    ├── FraudDetector.php            ← Risk scoring & type classification
+    ├── MetadataEnricher.php         ← Timezone / currency / language / length
+    └── PhoneExplainer.php           ← Plain-language explanation generator
+config/
+└── phone-country.php
+```
 
 ---
 
 ## Changelog
 
-### v1.0.3
-- Added `analyze()` returning `PhoneAnalysis` with all AI features
+### v2.0.0
+- Added `analyze()` returning `PhoneAnalysis` with all AI features in one call
 - Added `analyzeMany()` for batch analysis
-- Added `src/AI/PhoneNormalizer.php` — smart input normalization
-- Added `src/AI/NanpDisambiguator.php` — full NANP area-code map (25+ countries)
-- Added `src/AI/FraudDetector.php` — risk scoring, type classification, signal detection
-- Added `src/AI/MetadataEnricher.php` — timezone/currency/language/length for 180+ countries
-- Added `src/AI/PhoneExplainer.php` — plain-language explanation generator
-- Added `src/PhoneAnalysis.php` value object
+- Added `AI/PhoneNormalizer` — smart input normalization
+- Added `AI/NanpDisambiguator` — full NANP area-code map, 25+ countries
+- Added `AI/FraudDetector` — risk scoring, type classification, signal detection
+- Added `AI/MetadataEnricher` — timezone / currency / language / length for 180+ countries
+- Added `AI/PhoneExplainer` — plain-language explanation generator
+- Added `PhoneAnalysis` value object
 
 ### v1.0.2
-- Added `PhoneResult`, `resolveMany()`, `normalize()`, `PhoneCountryRule`, config support
+- Added `PhoneResult` value object from `resolve()`
+- Added `resolveMany()`, `normalize()`, publishable config
+- Added `PhoneCountryRule` — validation rule with allowlist and strict mode
 
 ### v1.0.1
 - Initial release with `resolveCountryCode()` and longest-prefix matching
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m 'Add your feature'`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Open a Pull Request
 
 ---
 
