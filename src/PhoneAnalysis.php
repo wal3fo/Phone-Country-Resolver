@@ -61,7 +61,7 @@ class PhoneAnalysis
     $typeLabel  = $this->numberType;
 
     return <<<HTML
-      <ul>
+      <ul class="lh-lg ps-0">
           <li><strong>Number:</strong> {$this->e164}</li>
           <li><strong>Country:</strong> {$this->flag} {$this->countryName} (+{$this->dialingCode})</li>
           <li><strong>National:</strong> {$this->formatNational}</li>
