@@ -117,7 +117,7 @@ class PhoneCountryService
     }
 
     /**
-     * Analyse a phone number and return a rich AnalysisResult object.
+     * Analyse a phone number and return a rich PhoneAnalysis object.
      *
      * Usage:
      *   $r = PhoneCountryService::analyze('+212612345678');
@@ -127,7 +127,7 @@ class PhoneCountryService
      * @param string      $phone            Raw phone number.
      * @param string|null $localCountryCode Fallback country code for local numbers.
      */
-    public static function analyze(string $phone, ?string $localCountryCode = null): AnalysisResult
+    public static function analyze(string $phone, ?string $localCountryCode = null): PhoneAnalysis
     {
         return static::getInstance()->buildResult($phone, $localCountryCode);
     }
@@ -197,8 +197,8 @@ class PhoneCountryService
         return ['XX', '0', $normalised, $inputFormat, false];
     }
 
-    /** Build the full AnalysisResult. */
-    protected function buildResult(string $phone, ?string $localCountryCode): AnalysisResult
+    /** Build the full PhoneAnalysis. */
+    protected function buildResult(string $phone, ?string $localCountryCode): PhoneAnalysis
     {
         [$iso, $dialingCode, $normalised, $inputFormat, $usedFallback] = $this->doResolve($phone, $localCountryCode);
 
@@ -217,7 +217,7 @@ class PhoneCountryService
         $isPossible = $this->isPossibleLength($iso, $digitCount);
         $numberType = $this->guessNumberType($iso, $nationalNumber);
 
-        return new AnalysisResult(
+        return new PhoneAnalysis(
             raw:                  $phone,
             normalized:           $normalised,
             e164:                 $e164,
@@ -346,3 +346,4 @@ class PhoneCountryService
         return '+' . $dialingCode . ' ' . implode(' ', $chunks);
     }
 }
+
