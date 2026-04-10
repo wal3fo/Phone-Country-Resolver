@@ -7,129 +7,141 @@ namespace Wal3fo\PhoneCountry;
  */
 class PhoneAnalysis
 {
-    public function __construct(
-        // ── Core resolution ───────────────────────────────────────────────
-        public readonly string  $raw,               // original input as-is
-        public readonly string  $normalized,         // cleaned digits (no +/spaces/dashes)
-        public readonly string  $e164,               // E.164 canonical form  e.g. +212612345678
-        public readonly string  $nationalNumber,     // local number without country prefix
-        public readonly string  $dialingCode,        // numeric calling code  e.g. "212"
+  public function __construct(
+    // ── Core resolution ───────────────────────────────────────────────
+    public readonly string  $raw,               // original input as-is
+    public readonly string  $normalized,         // cleaned digits (no +/spaces/dashes)
+    public readonly string  $e164,               // E.164 canonical form  e.g. +212612345678
+    public readonly string  $nationalNumber,     // local number without country prefix
+    public readonly string  $dialingCode,        // numeric calling code  e.g. "212"
 
-        // ── Country metadata ──────────────────────────────────────────────
-        public readonly string  $countryCode,        // ISO 3166-1 alpha-2  e.g. "MA"
-        public readonly string  $countryName,        // Full English name    e.g. "Morocco"
-        public readonly string  $flag,               // Emoji flag           e.g. "🇲🇦"
-        public readonly string  $region,             // World region         e.g. "Africa"
-        public readonly string  $continent,          // Continent            e.g. "Africa"
-        public readonly string  $capital,            // Capital city         e.g. "Rabat"
-        public readonly string  $currency,           // ISO 4217 code        e.g. "MAD"
-        public readonly string  $currencyName,       // Currency name        e.g. "Moroccan Dirham"
-        public readonly string  $language,           // Primary language     e.g. "Arabic"
-        public readonly string  $timezone,           // Primary TZ           e.g. "Africa/Casablanca"
+    // ── Country metadata ──────────────────────────────────────────────
+    public readonly string  $countryCode,        // ISO 3166-1 alpha-2  e.g. "MA"
+    public readonly string  $countryName,        // Full English name    e.g. "Morocco"
+    public readonly string  $flag,               // Emoji flag           e.g. "🇲🇦"
+    public readonly string  $region,             // World region         e.g. "Africa"
+    public readonly string  $continent,          // Continent            e.g. "Africa"
+    public readonly string  $capital,            // Capital city         e.g. "Rabat"
+    public readonly string  $currency,           // ISO 4217 code        e.g. "MAD"
+    public readonly string  $currencyName,       // Currency name        e.g. "Moroccan Dirham"
+    public readonly string  $language,           // Primary language     e.g. "Arabic"
+    public readonly string  $timezone,           // Primary TZ           e.g. "Africa/Casablanca"
 
-        // ── Number analysis ───────────────────────────────────────────────
-        public readonly string  $numberType,         // MOBILE | FIXED_LINE | TOLL_FREE | UNKNOWN
-        public readonly bool    $isValid,            // passes basic length/format checks
-        public readonly bool    $isPossible,         // plausible length for country
-        public readonly int     $digitCount,         // total digit count of nationalNumber
-        public readonly string  $formatNational,     // national format  e.g. "06 12 34 56 78"
-        public readonly string  $formatInternational,// intl format       e.g. "+212 6 12 34 56 78"
+    // ── Number analysis ───────────────────────────────────────────────
+    public readonly string  $numberType,         // MOBILE | FIXED_LINE | TOLL_FREE | UNKNOWN
+    public readonly bool    $isValid,            // passes basic length/format checks
+    public readonly bool    $isPossible,         // plausible length for country
+    public readonly int     $digitCount,         // total digit count of nationalNumber
+    public readonly string  $formatNational,     // national format  e.g. "06 12 34 56 78"
+    public readonly string  $formatInternational, // intl format       e.g. "+212 6 12 34 56 78"
 
-        // ── Input format hints ────────────────────────────────────────────
-        public readonly string  $inputFormat,        // E164 | DOUBLE_ZERO | NUMERIC | LOCAL
-        public readonly bool    $usedFallback,       // true if localCountryCode fallback was used
+    // ── Input format hints ────────────────────────────────────────────
+    public readonly string  $inputFormat,        // E164 | DOUBLE_ZERO | NUMERIC | LOCAL
+    public readonly bool    $usedFallback,       // true if localCountryCode fallback was used
 
-        // ── Resolved at ───────────────────────────────────────────────────
-        public readonly string  $resolvedAt,         // ISO 8601 timestamp
-    ) {}
+    // ── Resolved at ───────────────────────────────────────────────────
+    public readonly string  $resolvedAt,         // ISO 8601 timestamp
+  ) {}
+
+  /**
+   * Virtual properties — allows $result->explanation in Blade templates.
+   * Accessing ->explanation returns the same output as ->toHtml().
+   */
+  public function __get(string $name): mixed
+  {
+    return match ($name) {
+      'explanation' => $this->toHtml(),
+      default       => throw new \InvalidArgumentException("Undefined property: {$name}"),
+    };
+  }
 
     // ── Convenience helpers ───────────────────────────────────────────────
 
-    /** Plain associative array – useful for JSON responses. */
-    public function toArray(): array
-    {
-        return [
-            'raw'                  => $this->raw,
-            'normalized'           => $this->normalized,
-            'e164'                 => $this->e164,
-            'national_number'      => $this->nationalNumber,
-            'dialing_code'         => $this->dialingCode,
-            'country_code'         => $this->countryCode,
-            'country_name'         => $this->countryName,
-            'flag'                 => $this->flag,
-            'region'               => $this->region,
-            'continent'            => $this->continent,
-            'capital'              => $this->capital,
-            'currency'             => $this->currency,
-            'currency_name'        => $this->currencyName,
-            'language'             => $this->language,
-            'timezone'             => $this->timezone,
-            'number_type'          => $this->numberType,
-            'is_valid'             => $this->isValid,
-            'is_possible'          => $this->isPossible,
-            'digit_count'          => $this->digitCount,
-            'format_national'      => $this->formatNational,
-            'format_international' => $this->formatInternational,
-            'input_format'         => $this->inputFormat,
-            'used_fallback'        => $this->usedFallback,
-            'resolved_at'          => $this->resolvedAt,
-        ];
+  /** Plain associative array – useful for JSON responses. */
+  public function toArray(): array
+  {
+    return [
+      'raw'                  => $this->raw,
+      'normalized'           => $this->normalized,
+      'e164'                 => $this->e164,
+      'national_number'      => $this->nationalNumber,
+      'dialing_code'         => $this->dialingCode,
+      'country_code'         => $this->countryCode,
+      'country_name'         => $this->countryName,
+      'flag'                 => $this->flag,
+      'region'               => $this->region,
+      'continent'            => $this->continent,
+      'capital'              => $this->capital,
+      'currency'             => $this->currency,
+      'currency_name'        => $this->currencyName,
+      'language'             => $this->language,
+      'timezone'             => $this->timezone,
+      'number_type'          => $this->numberType,
+      'is_valid'             => $this->isValid,
+      'is_possible'          => $this->isPossible,
+      'digit_count'          => $this->digitCount,
+      'format_national'      => $this->formatNational,
+      'format_international' => $this->formatInternational,
+      'input_format'         => $this->inputFormat,
+      'used_fallback'        => $this->usedFallback,
+      'resolved_at'          => $this->resolvedAt,
+    ];
+  }
+
+  /** JSON string. */
+  public function toJson(int $flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE): string
+  {
+    return json_encode($this->toArray(), $flags);
+  }
+
+  /**
+   * Self-contained HTML card — no external dependencies, inline CSS.
+   * Ideal for debug views, Blade partials, or API responses.
+   */
+  public function toHtml(): string
+  {
+    $esc = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+    $validBadge   = $this->isValid
+      ? '<span class="pcr-badge pcr-badge--valid">✓ Valid</span>'
+      : '<span class="pcr-badge pcr-badge--invalid">✗ Invalid</span>';
+
+    $fallbackBadge = $this->usedFallback
+      ? '<span class="pcr-badge pcr-badge--fallback">Fallback used</span>'
+      : '';
+
+    $typeBadge = '<span class="pcr-badge pcr-badge--type">' . $esc($this->numberType) . '</span>';
+
+    $rows = [
+      ['📞 Raw input',          $this->raw],
+      ['🔢 Normalized',          $this->normalized],
+      ['🌐 E.164',               $this->e164],
+      ['📱 National number',     $this->nationalNumber],
+      ['🔑 Dialing code',        '+' . $this->dialingCode],
+      ['🏳️ Country code',        $this->countryCode],
+      ['🗺️ Country',             $this->flag . ' ' . $this->countryName],
+      ['🌍 Region / Continent',  $this->region . ' / ' . $this->continent],
+      ['🏛️ Capital',             $this->capital],
+      ['💱 Currency',            $this->currency . ' — ' . $this->currencyName],
+      ['🗣️ Language',            $this->language],
+      ['🕐 Timezone',            $this->timezone],
+      ['📐 Format (national)',   $this->formatNational],
+      ['📐 Format (intl)',       $this->formatInternational],
+      ['🔍 Input format',        $this->inputFormat],
+      ['🔢 Digit count',         (string) $this->digitCount],
+      ['🕒 Resolved at',         $this->resolvedAt],
+    ];
+
+    $tableRows = '';
+    foreach ($rows as [$label, $value]) {
+      $tableRows .= sprintf(
+        '<tr><th>%s</th><td>%s</td></tr>',
+        $esc($label),
+        $esc($value)
+      );
     }
 
-    /** JSON string. */
-    public function toJson(int $flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE): string
-    {
-        return json_encode($this->toArray(), $flags);
-    }
-
-    /**
-     * Self-contained HTML card — no external dependencies, inline CSS.
-     * Ideal for debug views, Blade partials, or API responses.
-     */
-    public function toHtml(): string
-    {
-        $esc = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-
-        $validBadge   = $this->isValid
-            ? '<span class="pcr-badge pcr-badge--valid">✓ Valid</span>'
-            : '<span class="pcr-badge pcr-badge--invalid">✗ Invalid</span>';
-
-        $fallbackBadge = $this->usedFallback
-            ? '<span class="pcr-badge pcr-badge--fallback">Fallback used</span>'
-            : '';
-
-        $typeBadge = '<span class="pcr-badge pcr-badge--type">' . $esc($this->numberType) . '</span>';
-
-        $rows = [
-            ['📞 Raw input',          $this->raw],
-            ['🔢 Normalized',          $this->normalized],
-            ['🌐 E.164',               $this->e164],
-            ['📱 National number',     $this->nationalNumber],
-            ['🔑 Dialing code',        '+' . $this->dialingCode],
-            ['🏳️ Country code',        $this->countryCode],
-            ['🗺️ Country',             $this->flag . ' ' . $this->countryName],
-            ['🌍 Region / Continent',  $this->region . ' / ' . $this->continent],
-            ['🏛️ Capital',             $this->capital],
-            ['💱 Currency',            $this->currency . ' — ' . $this->currencyName],
-            ['🗣️ Language',            $this->language],
-            ['🕐 Timezone',            $this->timezone],
-            ['📐 Format (national)',   $this->formatNational],
-            ['📐 Format (intl)',       $this->formatInternational],
-            ['🔍 Input format',        $this->inputFormat],
-            ['🔢 Digit count',         (string) $this->digitCount],
-            ['🕒 Resolved at',         $this->resolvedAt],
-        ];
-
-        $tableRows = '';
-        foreach ($rows as [$label, $value]) {
-            $tableRows .= sprintf(
-                '<tr><th>%s</th><td>%s</td></tr>',
-                $esc($label),
-                $esc($value)
-            );
-        }
-
-        return <<<HTML
+    return <<<HTML
 <style>
   .pcr-card {
     font-family: 'Segoe UI', system-ui, sans-serif;
@@ -197,6 +209,5 @@ class PhoneAnalysis
   </table>
 </div>
 HTML;
-    }
+  }
 }
-
