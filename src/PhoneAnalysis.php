@@ -50,12 +50,32 @@ class PhoneAnalysis
   public function __get(string $name): mixed
   {
     return match ($name) {
-      'explanation' => $this->toHtml(),
+      'explanation' => $this->toUl(),
       default       => throw new \InvalidArgumentException("Undefined property: {$name}"),
     };
   }
 
-    // ── Convenience helpers ───────────────────────────────────────────────
+  public function toUl(): string
+  {
+    $validLabel = $this->isValid ? '✓ Valid' : '✗ Invalid';
+    $typeLabel  = $this->numberType;
+
+    return <<<HTML
+      <ul>
+          <li><strong>Number:</strong> {$this->e164}</li>
+          <li><strong>Country:</strong> {$this->flag} {$this->countryName} (+{$this->dialingCode})</li>
+          <li><strong>National:</strong> {$this->formatNational}</li>
+          <li><strong>Type:</strong> {$typeLabel}</li>
+          <li><strong>Status:</strong> {$validLabel}</li>
+          <li><strong>Region:</strong> {$this->region}, {$this->continent}</li>
+          <li><strong>Timezone:</strong> {$this->timezone}</li>
+          <li><strong>Language:</strong> {$this->language}</li>
+          <li><strong>Currency:</strong> {$this->currency} — {$this->currencyName}</li>
+      </ul>
+      HTML;
+  }
+
+  // ── Convenience helpers ───────────────────────────────────────────────
 
   /** Plain associative array – useful for JSON responses. */
   public function toArray(): array
