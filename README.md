@@ -13,7 +13,7 @@
 <br/>
 
 **Resolve ISO 3166-1 alpha-2 country codes from phone numbers.**  
-AI-powered normalization · NANP disambiguation · Fraud detection · Rich metadata · Zero dependencies.
+Smart normalization · NANP disambiguation · Fraud detection · Rich metadata · Zero dependencies.
 
 <br/>
 
@@ -27,28 +27,25 @@ composer require wal3fo/phone-country
 
 ## How it works
 
-`analyze()` runs six AI stages in sequence, building on the existing `resolve()` pipeline:
+`analyze()` runs six stages in sequence, building on the core `resolve()` pipeline:
 
 <div align="center">
 <img src=".github/assets/architecture.svg" alt="analyze() pipeline" width="100%">
 </div>
 
-<br/>
-
 ---
 
-## ✦ What's new in v2.0
+## Features
 
 | Feature | Method | Description |
 |---|---|---|
+| 🔍 Country resolution | `resolve()` | Resolves ISO 3166-1 alpha-2 country code from any phone format |
 | 🧹 Smart normalization | `analyze()` | Repairs messy inputs — strips labels, removes `(0)` trunk prefixes, collapses separators |
 | 🌎 NANP disambiguation | `analyze()` | Resolves `+1` to the correct country using a full area-code map for 25+ territories |
-| 🔍 Fraud detection | `analyze()` | Classifies number type and scores risk 0–100 using prefix tables and structural signals |
+| 🚨 Fraud detection | `analyze()` | Classifies number type and scores risk 0–100 using prefix tables and structural signals |
 | 🌐 Rich metadata | `analyze()` | Timezone, currency, language, subscriber length for 180+ countries |
 | 💬 Explanation | `analyze()` | Plain-language description — deterministic, no LLM, no API key |
-| 📦 Batch | `analyzeMany()` | Processes arrays in a single call |
-
-> All v1.x methods — `resolve()`, `resolveMany()`, `normalize()`, `resolveCountryCode()` — are fully unchanged.
+| 📦 Batch processing | `analyzeMany()` / `resolveMany()` | Processes arrays in a single call |
 
 ---
 
@@ -91,115 +88,11 @@ $analysis->toArray();  // full array for API responses
 
 ---
 
-## AI features
-
-### 🧹 Smart normalization
-
-Messy real-world inputs are cleaned before resolution:
-
-```php
-// Parentheses, dots, dashes
-PhoneCountryService::analyze('(+212) 06-12.345.678')->normalizedInput;    // '+212612345678'
-PhoneCountryService::analyze('(+212) 06-12.345.678')->wasNormalized;      // true
-
-// UK-style trunk prefix
-PhoneCountryService::analyze('+44 (0)20 7946 0958')->result->countryCode; // 'GB'
-
-// Label prefix from contact books
-PhoneCountryService::analyze('Phone: +33612345678')->result->countryCode;  // 'FR'
-```
-
----
-
-### 🌎 NANP disambiguation
-
-`+1` is shared by 25+ countries. `analyze()` uses the 3-digit area code to resolve the correct one:
-
-```php
-PhoneCountryService::analyze('+18765551234')->disambiguatedCountryCode; // 'JM' — Jamaica
-PhoneCountryService::analyze('+14165551234')->disambiguatedCountryCode; // 'CA' — Canada
-PhoneCountryService::analyze('+12425551234')->disambiguatedCountryCode; // 'BS' — Bahamas
-PhoneCountryService::analyze('+17875551234')->disambiguatedCountryCode; // 'PR' — Puerto Rico
-PhoneCountryService::analyze('+18695551234')->disambiguatedCountryCode; // 'KN' — Saint Kitts
-PhoneCountryService::analyze('+12125551234')->disambiguatedCountryCode; // 'US' — no overhead
-```
-
-Covers all assigned NANP area codes: `US` · `CA` · `JM` · `BS` · `BB` · `AG` · `AI` · `VI` · `KY` · `BM` · `GD` · `TC` · `MS` · `GU` · `MP` · `AS` · `SX` · `LC` · `DM` · `PR` · `VC` · `DO` · `TT` · `KN` · `VG`
-
----
-
-### 🔍 Fraud signal detection
-
-```php
-// Toll-free number
-$a = PhoneCountryService::analyze('+18005551234');
-$a->numberType;    // 'toll_free'
-$a->riskLevel;     // 'medium'
-$a->riskScore;     // 30
-$a->fraudSignals;  // ['toll_free_range']
-
-// Premium-rate number
-$b = PhoneCountryService::analyze('+19005551234');
-$b->numberType;    // 'premium'
-$b->riskLevel;     // 'high'
-$b->riskScore;     // 50
-
-// Repeating digits — fake/test number
-$c = PhoneCountryService::analyze('+212611111111');
-$c->fraudSignals;  // ['repeating_digit_pattern']
-$c->riskLevel;     // 'high'
-```
-
-**Risk levels:** `low` (0–29) · `medium` (30–59) · `high` (60–100)
-
-**Detected signals:** `toll_free_range` · `premium_rate_range` · `voip_pattern` · `repeating_digit_pattern` · `sequential_digit_pattern` · `fictional_reserved_range` · `unresolvable_country`
-
-**Number types:** `mobile` · `landline` · `voip` · `toll_free` · `premium` · `unknown`
-
----
-
-### 🌐 Rich metadata enrichment
-
-```php
-$a = PhoneCountryService::analyze('+212612345678');
-$a->timezone;           // 'Africa/Casablanca'
-$a->currency;           // 'MAD'
-$a->language;           // 'ar'
-$a->subscriberLength;   // 9
-$a->lengthValid;        // true
-
-$b = PhoneCountryService::analyze('+33612345678');
-$b->timezone;           // 'Europe/Paris'
-$b->currency;           // 'EUR'
-$b->language;           // 'fr'
-```
-
-Covers 180+ countries with IANA timezone · ISO 4217 currency · BCP 47 language · expected subscriber length.
-
----
-
-### 📦 Batch analysis
-
-```php
-$results = PhoneCountryService::analyzeMany([
-    '+212612345678',
-    '+18765551234',
-    '(+44) (0)20 7946 0958',
-]);
-
-foreach ($results as $analysis) {
-    echo $analysis->countryCode() . ': ' . $analysis->riskLevel . PHP_EOL;
-}
-// MA: low
-// JM: low
-// GB: low
-```
-
----
-
-## Core methods — v1.x
+## Core methods
 
 ### `resolve()`
+
+Resolves a phone number and returns a `PhoneResult` value object.
 
 ```php
 $result = PhoneCountryService::resolve('+212612345678');
@@ -243,6 +136,14 @@ PhoneCountryService::normalize('0612345678', 'MA');   // '+212612345678'
 PhoneCountryService::normalize('0612345678');         // null — unresolvable
 ```
 
+### `resolveCountryCode()`
+
+```php
+PhoneCountryService::resolveCountryCode('+212612345678');       // 'MA'
+PhoneCountryService::resolveCountryCode('0612345678', 'MA');   // 'MA'
+PhoneCountryService::resolveCountryCode('0612345678');         // 'XX'
+```
+
 ### Validation rule
 
 ```php
@@ -278,14 +179,6 @@ class RegisterRequest extends FormRequest
 }
 ```
 
-### `resolveCountryCode()` — backward compatible
-
-```php
-PhoneCountryService::resolveCountryCode('+212612345678');       // 'MA'
-PhoneCountryService::resolveCountryCode('0612345678', 'MA');   // 'MA'
-PhoneCountryService::resolveCountryCode('0612345678');         // 'XX'
-```
-
 ### Dependency injection
 
 ```php
@@ -305,6 +198,104 @@ class UserProfileController extends Controller
         ]);
     }
 }
+```
+
+---
+
+## `analyze()` — advanced pipeline
+
+### 🧹 Smart normalization
+
+Messy real-world inputs are cleaned before resolution:
+
+```php
+// Parentheses, dots, dashes
+PhoneCountryService::analyze('(+212) 06-12.345.678')->normalizedInput;    // '+212612345678'
+PhoneCountryService::analyze('(+212) 06-12.345.678')->wasNormalized;      // true
+
+// UK-style trunk prefix
+PhoneCountryService::analyze('+44 (0)20 7946 0958')->result->countryCode; // 'GB'
+
+// Label prefix from contact books
+PhoneCountryService::analyze('Phone: +33612345678')->result->countryCode;  // 'FR'
+```
+
+### 🌎 NANP disambiguation
+
+`+1` is shared by 25+ countries. `analyze()` uses the 3-digit area code to resolve the correct one:
+
+```php
+PhoneCountryService::analyze('+18765551234')->disambiguatedCountryCode; // 'JM' — Jamaica
+PhoneCountryService::analyze('+14165551234')->disambiguatedCountryCode; // 'CA' — Canada
+PhoneCountryService::analyze('+12425551234')->disambiguatedCountryCode; // 'BS' — Bahamas
+PhoneCountryService::analyze('+17875551234')->disambiguatedCountryCode; // 'PR' — Puerto Rico
+PhoneCountryService::analyze('+18695551234')->disambiguatedCountryCode; // 'KN' — Saint Kitts
+PhoneCountryService::analyze('+12125551234')->disambiguatedCountryCode; // 'US' — no overhead
+```
+
+Covers all assigned NANP area codes: `US` · `CA` · `JM` · `BS` · `BB` · `AG` · `AI` · `VI` · `KY` · `BM` · `GD` · `TC` · `MS` · `GU` · `MP` · `AS` · `SX` · `LC` · `DM` · `PR` · `VC` · `DO` · `TT` · `KN` · `VG`
+
+### 🚨 Fraud signal detection
+
+```php
+// Toll-free number
+$a = PhoneCountryService::analyze('+18005551234');
+$a->numberType;    // 'toll_free'
+$a->riskLevel;     // 'medium'
+$a->riskScore;     // 30
+$a->fraudSignals;  // ['toll_free_range']
+
+// Premium-rate number
+$b = PhoneCountryService::analyze('+19005551234');
+$b->numberType;    // 'premium'
+$b->riskLevel;     // 'high'
+$b->riskScore;     // 50
+
+// Repeating digits — fake/test number
+$c = PhoneCountryService::analyze('+212611111111');
+$c->fraudSignals;  // ['repeating_digit_pattern']
+$c->riskLevel;     // 'high'
+```
+
+**Risk levels:** `low` (0–29) · `medium` (30–59) · `high` (60–100)
+
+**Detected signals:** `toll_free_range` · `premium_rate_range` · `voip_pattern` · `repeating_digit_pattern` · `sequential_digit_pattern` · `fictional_reserved_range` · `unresolvable_country`
+
+**Number types:** `mobile` · `landline` · `voip` · `toll_free` · `premium` · `unknown`
+
+### 🌐 Rich metadata enrichment
+
+```php
+$a = PhoneCountryService::analyze('+212612345678');
+$a->timezone;           // 'Africa/Casablanca'
+$a->currency;           // 'MAD'
+$a->language;           // 'ar'
+$a->subscriberLength;   // 9
+$a->lengthValid;        // true
+
+$b = PhoneCountryService::analyze('+33612345678');
+$b->timezone;           // 'Europe/Paris'
+$b->currency;           // 'EUR'
+$b->language;           // 'fr'
+```
+
+Covers 180+ countries with IANA timezone · ISO 4217 currency · BCP 47 language · expected subscriber length.
+
+### 📦 Batch analysis
+
+```php
+$results = PhoneCountryService::analyzeMany([
+    '+212612345678',
+    '+18765551234',
+    '(+44) (0)20 7946 0958',
+]);
+
+foreach ($results as $analysis) {
+    echo $analysis->countryCode() . ': ' . $analysis->riskLevel . PHP_EOL;
+}
+// MA: low
+// JM: low
+// GB: low
 ```
 
 ---
@@ -387,10 +378,10 @@ src/
 ├── PhoneCountryService.php          ← Main service — all public methods
 ├── PhoneCountryServiceProvider.php
 ├── PhoneResult.php                  ← Value object from resolve()
-├── PhoneAnalysis.php                ← Value object from analyze()  ✦ new
+├── PhoneAnalysis.php                ← Value object from analyze()
 ├── Rules/
 │   └── PhoneCountryRule.php         ← Laravel validation rule
-└── AI/                              ✦ new
+└── AI/
     ├── PhoneNormalizer.php          ← Smart input normalization
     ├── NanpDisambiguator.php        ← +1 area-code map (25+ countries)
     ├── FraudDetector.php            ← Risk scoring & type classification
@@ -404,8 +395,12 @@ config/
 
 ## Changelog
 
-### v2.0.0
-- Added `analyze()` returning `PhoneAnalysis` with all AI features in one call
+### v1.0.0
+- Initial release with `resolveCountryCode()` and longest-prefix matching
+- Added `PhoneResult` value object from `resolve()`
+- Added `resolveMany()`, `normalize()`, publishable config
+- Added `PhoneCountryRule` — validation rule with allowlist and strict mode
+- Added `analyze()` returning `PhoneAnalysis` with all pipeline features in one call
 - Added `analyzeMany()` for batch analysis
 - Added `AI/PhoneNormalizer` — smart input normalization
 - Added `AI/NanpDisambiguator` — full NANP area-code map, 25+ countries
@@ -413,14 +408,6 @@ config/
 - Added `AI/MetadataEnricher` — timezone / currency / language / length for 180+ countries
 - Added `AI/PhoneExplainer` — plain-language explanation generator
 - Added `PhoneAnalysis` value object
-
-### v1.0.2
-- Added `PhoneResult` value object from `resolve()`
-- Added `resolveMany()`, `normalize()`, publishable config
-- Added `PhoneCountryRule` — validation rule with allowlist and strict mode
-
-### v1.0.1
-- Initial release with `resolveCountryCode()` and longest-prefix matching
 
 ---
 
