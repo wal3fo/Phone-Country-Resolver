@@ -273,7 +273,7 @@ echo PhoneCountryService::analyze('+33612345678')->explanation;
 
 ### 🔄 Input format detection
 
-`analyze()` recognises and normalises multiple input formats:
+`analyze()` recognizes and normalizes multiple input formats:
 
 ```php
 PhoneCountryService::analyze('+212612345678')->inputFormat;    // 'E164'
